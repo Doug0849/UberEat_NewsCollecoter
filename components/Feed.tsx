@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
-import { NewsItem, Category } from '../types';
+import { NewsItem, Category, KeywordConfig } from '../types';
 import { INITIAL_NEWS, SIMULATED_INCOMING_NEWS, MOCK_KEYWORDS } from '../constants';
 import { fetchLiveNews } from '../services/geminiService';
 import NewsCard from './NewsCard';
-import { Filter, RefreshCw, Calendar, X, Search, Loader2 } from 'lucide-react';
+import { Filter, RefreshCw, Calendar, X, Search, Loader2, RotateCw } from 'lucide-react';
 
-const Feed: React.FC = () => {
+interface FeedProps {
+  keywords?: KeywordConfig[];
+}
+
+const Feed: React.FC<FeedProps> = ({ keywords = MOCK_KEYWORDS }) => {
   const [items, setItems] = useState<NewsItem[]>(INITIAL_NEWS);
   const [filter, setFilter] = useState<Category | 'ALL'>('ALL');
   const [startDate, setStartDate] = useState('');
@@ -32,15 +36,23 @@ const Feed: React.FC = () => {
   // Live Search with Gemini
   const handleLiveSearch = async () => {
     setIsSearching(true);
-    // Use keywords from constants (in real app, these would come from settings context)
-    const searchKeywords = MOCK_KEYWORDS.map(k => k.term);
     
+    // Use user-defined keywords passed via props
+    const searchKeywords = keywords.map(k => k.term);
+    
+    if (searchKeywords.length === 0) {
+      alert("請先在設定頁面新增關鍵字！");
+      setIsSearching(false);
+      return;
+    }
+
     const newItems = await fetchLiveNews(searchKeywords);
     
     if (newItems.length > 0) {
       setItems(prev => [...newItems, ...prev]);
     } else {
-      alert("目前搜尋不到相關即時新聞，或 API 金鑰未設定。");
+      // Don't alert if just empty, maybe just console log or show toast in real app
+      console.log("No new items found.");
     }
     setIsSearching(false);
   };
@@ -89,33 +101,38 @@ const Feed: React.FC = () => {
     }
   };
 
-  const getCategoryStyle = (cat: string) => {
+  // Styling for Active State (Vibrant, solid colors)
+  const getActiveStyle = (cat: string) => {
     switch (cat) {
-      case 'ALL': return 'bg-slate-800 border-slate-800 text-white shadow-md ring-2 ring-slate-200';
-      case Category.DEFENSIVE: return 'bg-red-600 border-red-600 text-white shadow-md shadow-red-100 ring-2 ring-red-100';
-      case Category.OFFENSIVE: return 'bg-orange-500 border-orange-500 text-white shadow-md shadow-orange-100 ring-2 ring-orange-100';
-      case Category.MACRO: return 'bg-blue-500 border-blue-500 text-white shadow-md shadow-blue-100 ring-2 ring-blue-100';
-      case Category.SOCIAL: return 'bg-purple-500 border-purple-500 text-white shadow-md shadow-purple-100 ring-2 ring-purple-100';
-      default: return 'bg-slate-800 border-slate-800 text-white';
+      case 'ALL': return 'bg-slate-800 text-white ring-2 ring-slate-300 shadow-md';
+      case Category.DEFENSIVE: return 'bg-red-600 text-white ring-2 ring-red-200 shadow-md';
+      case Category.OFFENSIVE: return 'bg-orange-500 text-white ring-2 ring-orange-200 shadow-md';
+      case Category.MACRO: return 'bg-blue-500 text-white ring-2 ring-blue-200 shadow-md';
+      case Category.SOCIAL: return 'bg-purple-500 text-white ring-2 ring-purple-200 shadow-md';
+      default: return 'bg-slate-800 text-white';
     }
+  };
+
+  // Styling for Inactive State (Subtle, clean)
+  const getInactiveStyle = () => {
+    return 'bg-white border border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all shadow-sm hover:shadow-md';
   };
 
   return (
     <div className="max-w-7xl mx-auto">
-      {/* Controls */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 mb-8">
+      {/* Header Controls */}
+      <div className="flex flex-col xl:flex-row gap-6 mb-8 justify-between items-start xl:items-center">
         
-        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center flex-wrap">
-          {/* Category Filters */}
-          <div className="flex items-center gap-2 overflow-x-auto max-w-full pb-2 md:pb-0 no-scrollbar">
+        {/* Filters Container */}
+        <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto">
+          {/* Category Buttons */}
+          <div className="flex flex-wrap gap-2">
             {(['ALL', ...Object.values(Category)] as const).map((cat) => (
               <button
                 key={cat}
                 onClick={() => setFilter(cat)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border whitespace-nowrap ${
-                  filter === cat 
-                    ? getCategoryStyle(cat)
-                    : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-slate-50 hover:shadow-sm'
+                className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-300 whitespace-nowrap ${
+                  filter === cat ? getActiveStyle(cat) : getInactiveStyle()
                 }`}
               >
                 {getCategoryLabel(cat)}
@@ -123,8 +140,8 @@ const Feed: React.FC = () => {
             ))}
           </div>
 
-          {/* Date Filters */}
-          <div className="flex items-center gap-2 bg-white p-1.5 rounded-full border border-slate-200 shadow-sm h-[42px]">
+          {/* Date Picker */}
+          <div className="flex items-center gap-2 bg-white p-1.5 rounded-full border border-slate-200 shadow-sm h-[42px] min-w-[320px]">
             <div className="flex items-center gap-2 pl-3 pr-2 border-r border-slate-100 h-full">
               <Calendar size={16} className="text-slate-400" />
             </div>
@@ -155,23 +172,25 @@ const Feed: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 self-start xl:self-auto">
-          <button 
+        {/* Action Buttons */}
+        <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto justify-end">
+          
+           <button 
             onClick={handleLiveSearch}
             disabled={isSearching || isSimulating}
-            className="flex items-center gap-2 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-600 text-slate-600 px-5 py-2.5 rounded-full shadow-sm transition-all active:scale-95 disabled:opacity-70 whitespace-nowrap font-medium text-sm group"
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-full shadow-lg shadow-indigo-200 transition-all active:scale-95 disabled:opacity-70 whitespace-nowrap font-medium text-sm"
           >
-            {isSearching ? <Loader2 size={18} className="animate-spin text-indigo-500" /> : <Search size={18} className="group-hover:text-indigo-500" />}
-            {isSearching ? '搜尋中...' : '即時搜尋新聞'}
+            {isSearching ? <Loader2 size={18} className="animate-spin" /> : <RotateCw size={18} />}
+            {isSearching ? '正在更新情報...' : '立即更新情報 (Refresh)'}
           </button>
-          
+
           <button 
             onClick={simulateIncomingData}
             disabled={isSimulating || isSearching}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-full shadow-md transition-transform active:scale-95 disabled:opacity-70 whitespace-nowrap font-medium text-sm"
+            className="flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-300 text-slate-600 px-5 py-2.5 rounded-full shadow-sm transition-transform active:scale-95 disabled:opacity-70 whitespace-nowrap font-medium text-sm"
           >
             <RefreshCw size={18} className={isSimulating ? 'animate-spin' : ''} />
-            {isSimulating ? '讀取 RSS 中...' : '模擬接收訊號'}
+            {isSimulating ? 'RSS 同步中...' : '測試訊號'}
           </button>
         </div>
       </div>
@@ -188,15 +207,15 @@ const Feed: React.FC = () => {
       </div>
 
       {filteredItems.length === 0 && (
-        <div className="text-center py-20">
+        <div className="text-center py-20 bg-white rounded-xl border border-slate-100 shadow-sm mt-4">
           <div className="bg-slate-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
             <Filter className="text-slate-400" />
           </div>
           <h3 className="text-lg font-medium text-slate-600">
             {items.length === 0 ? '目前沒有任何情報' : '此篩選條件下沒有情報'}
           </h3>
-          <p className="text-slate-400 text-sm mt-1">
-            {startDate || endDate ? '請嘗試調整日期範圍或類別' : '請稍後再回來查看，或是點擊「即時搜尋新聞」'}
+          <p className="text-slate-400 text-sm mt-2">
+            {startDate || endDate ? '請嘗試調整日期範圍或類別' : '點擊右上角「立即更新情報」以獲取最新資訊'}
           </p>
         </div>
       )}

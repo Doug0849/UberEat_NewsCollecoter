@@ -77,10 +77,13 @@ export const fetchLiveNews = async (keywords: string[]): Promise<NewsItem[]> => 
     return [];
   }
 
-  // Construct a focused query
-  const queryTerms = keywords.slice(0, 5).join(' OR '); // Limit to first 5 to avoid query bloat
+  // Construct a focused query using ALL keywords to ensure user settings are respected.
+  // We rely on Gemini to interpret the list and form appropriate queries.
+  const queryTerms = keywords.join(', ');
   const prompt = `
-    請使用 Google Search 搜尋台灣關於以下主題的最新新聞 (過去 24-48 小時): ${queryTerms}。
+    請使用 Google Search 搜尋台灣關於以下主題的最新新聞 (過去 24-48 小時): 
+    
+    ${queryTerms}
     
     請挑選 3-5 則最相關且重要的新聞。
     請將結果整理為一個純 JSON 陣列 (Array of Objects)，不要使用 Markdown code block，直接回傳 JSON 字串。

@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, Radio, Settings, LineChart } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import Feed from './components/Feed';
 import SettingsPage from './components/SettingsPage';
+import { KeywordConfig, RssFeedConfig } from './types';
+import { MOCK_KEYWORDS, MOCK_RSS_FEEDS } from './constants';
 
 // Navigation State Type
 type View = 'dashboard' | 'feed' | 'settings';
@@ -10,14 +12,67 @@ type View = 'dashboard' | 'feed' | 'settings';
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('dashboard');
 
+  // Persistent State for Settings
+  // Initialize from LocalStorage if available, otherwise use MOCK data
+  const [keywords, setKeywords] = useState<KeywordConfig[]>(() => {
+    try {
+      const saved = localStorage.getItem('insightstream_keywords');
+      // Check if saved is 'undefined' string or null
+      if (saved && saved !== 'undefined') {
+        return JSON.parse(saved);
+      }
+      return MOCK_KEYWORDS;
+    } catch (e) {
+      console.error("Failed to parse keywords from local storage", e);
+      return MOCK_KEYWORDS;
+    }
+  });
+
+  const [rssFeeds, setRssFeeds] = useState<RssFeedConfig[]>(() => {
+    try {
+      const saved = localStorage.getItem('insightstream_rss');
+      if (saved && saved !== 'undefined') {
+        return JSON.parse(saved);
+      }
+      return MOCK_RSS_FEEDS;
+    } catch (e) {
+      console.error("Failed to parse RSS feeds from local storage", e);
+      return MOCK_RSS_FEEDS;
+    }
+  });
+
+  // Effect: Save to LocalStorage whenever state changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('insightstream_keywords', JSON.stringify(keywords));
+    } catch (e) {
+      console.error("Failed to save keywords to local storage", e);
+    }
+  }, [keywords]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('insightstream_rss', JSON.stringify(rssFeeds));
+    } catch (e) {
+      console.error("Failed to save RSS feeds to local storage", e);
+    }
+  }, [rssFeeds]);
+
   const renderView = () => {
     switch (currentView) {
       case 'dashboard':
         return <Dashboard onViewChange={setCurrentView} />;
       case 'feed':
-        return <Feed />;
+        return <Feed keywords={keywords} />;
       case 'settings':
-        return <SettingsPage />;
+        return (
+          <SettingsPage 
+            keywords={keywords} 
+            onUpdateKeywords={setKeywords}
+            rssFeeds={rssFeeds}
+            onUpdateRssFeeds={setRssFeeds}
+          />
+        );
       default:
         return <Dashboard onViewChange={setCurrentView} />;
     }

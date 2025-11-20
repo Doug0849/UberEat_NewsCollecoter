@@ -1,16 +1,24 @@
 import React, { useState } from 'react';
-import { MOCK_KEYWORDS, MOCK_RSS_FEEDS } from '../constants';
 import { KeywordConfig, Category, RssFeedConfig } from '../types';
 import { Trash2, Plus, Search, Rss, Link } from 'lucide-react';
 
-const SettingsPage: React.FC = () => {
-  // Keyword State
-  const [keywords, setKeywords] = useState<KeywordConfig[]>(MOCK_KEYWORDS);
+interface SettingsPageProps {
+  keywords: KeywordConfig[];
+  onUpdateKeywords: (keywords: KeywordConfig[]) => void;
+  rssFeeds: RssFeedConfig[];
+  onUpdateRssFeeds: (feeds: RssFeedConfig[]) => void;
+}
+
+const SettingsPage: React.FC<SettingsPageProps> = ({ 
+  keywords, 
+  onUpdateKeywords, 
+  rssFeeds, 
+  onUpdateRssFeeds 
+}) => {
+  // Input State (Local)
   const [newTerm, setNewTerm] = useState('');
   const [newCat, setNewCat] = useState<Category>(Category.DEFENSIVE);
-
-  // RSS Feed State
-  const [rssFeeds, setRssFeeds] = useState<RssFeedConfig[]>(MOCK_RSS_FEEDS);
+  
   const [newRssName, setNewRssName] = useState('');
   const [newRssUrl, setNewRssUrl] = useState('');
 
@@ -22,12 +30,12 @@ const SettingsPage: React.FC = () => {
       term: newTerm,
       category: newCat
     };
-    setKeywords([...keywords, newItem]);
+    onUpdateKeywords([...keywords, newItem]);
     setNewTerm('');
   };
 
   const removeKeyword = (id: string) => {
-    setKeywords(keywords.filter(k => k.id !== id));
+    onUpdateKeywords(keywords.filter(k => k.id !== id));
   };
 
   // RSS Feed Handlers
@@ -38,13 +46,13 @@ const SettingsPage: React.FC = () => {
       name: newRssName,
       url: newRssUrl
     };
-    setRssFeeds([...rssFeeds, newFeed]);
+    onUpdateRssFeeds([...rssFeeds, newFeed]);
     setNewRssName('');
     setNewRssUrl('');
   };
 
   const removeRssFeed = (id: string) => {
-    setRssFeeds(rssFeeds.filter(f => f.id !== id));
+    onUpdateRssFeeds(rssFeeds.filter(f => f.id !== id));
   };
 
   const getCategoryLabel = (cat: Category) => {
