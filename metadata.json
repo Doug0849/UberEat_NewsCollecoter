@@ -1,0 +1,5 @@
+{
+  "name": "InsightStream: AM Intelligence Hub",
+  "description": "專為客戶經理 (AM) 打造的情報儀表板，透過自動化 RSS Feed 和 Gemini AI 監測品牌訊號、競品動態與市場趨勢。",
+  "requestFramePermissions": []
+}
