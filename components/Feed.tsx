@@ -18,6 +18,7 @@ const Feed: React.FC<FeedProps> = ({
   const [filter, setFilter] = useState<Category | 'ALL'>('ALL');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Combined Refresh: Fetches Live Search + RSS Feeds
@@ -85,6 +86,14 @@ const Feed: React.FC<FeedProps> = ({
     // Category Filter
     if (filter !== 'ALL' && i.category !== filter) return false;
 
+    // Search Query Filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchTitle = i.title.toLowerCase().includes(query);
+      const matchSnippet = i.snippet.toLowerCase().includes(query);
+      if (!matchTitle && !matchSnippet) return false;
+    }
+
     // Date Range Filter
     const itemDate = new Date(i.date).getTime();
     
@@ -142,7 +151,7 @@ const Feed: React.FC<FeedProps> = ({
       <div className="flex flex-col xl:flex-row gap-6 mb-8 justify-between items-start xl:items-center">
         
         {/* Filters Container */}
-        <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto">
+        <div className="flex flex-col lg:flex-row gap-4 w-full xl:w-auto lg:items-center">
           {/* Category Buttons */}
           <div className="flex flex-wrap gap-2">
             {(['ALL', ...Object.values(Category)] as const).map((cat) => (
@@ -156,6 +165,26 @@ const Feed: React.FC<FeedProps> = ({
                 {getCategoryLabel(cat)}
               </button>
             ))}
+          </div>
+
+          {/* Search Input */}
+          <div className="relative group min-w-[220px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={16} />
+            <input 
+              type="text" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="搜尋標題或摘要..."
+              className="w-full pl-9 pr-8 py-2 rounded-full border border-slate-200 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all text-sm h-[42px] shadow-sm bg-white"
+            />
+             {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 rounded-full hover:bg-slate-100 p-0.5"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
 
           {/* Date Picker */}
@@ -192,7 +221,6 @@ const Feed: React.FC<FeedProps> = ({
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto justify-end">
-          
            <button 
             onClick={handleRefresh}
             disabled={isRefreshing}
@@ -224,7 +252,7 @@ const Feed: React.FC<FeedProps> = ({
             {items.length === 0 ? '目前沒有任何情報' : '此篩選條件下沒有情報'}
           </h3>
           <p className="text-slate-400 text-sm mt-2">
-            {startDate || endDate ? '請嘗試調整日期範圍或類別' : '點擊右上角「刷新新聞」以獲取最新資訊'}
+            {startDate || endDate || searchQuery ? '請嘗試調整搜尋條件、日期範圍或類別' : '點擊右上角「刷新新聞」以獲取最新資訊'}
           </p>
         </div>
       )}
