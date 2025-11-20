@@ -63,7 +63,7 @@ const App: React.FC = () => {
       case 'dashboard':
         return <Dashboard onViewChange={setCurrentView} />;
       case 'feed':
-        return <Feed keywords={keywords} />;
+        return <Feed keywords={keywords} rssFeeds={rssFeeds} />;
       case 'settings':
         return (
           <SettingsPage 

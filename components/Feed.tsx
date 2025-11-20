@@ -1,60 +1,78 @@
 import React, { useState } from 'react';
-import { NewsItem, Category, KeywordConfig } from '../types';
-import { INITIAL_NEWS, SIMULATED_INCOMING_NEWS, MOCK_KEYWORDS } from '../constants';
+import { NewsItem, Category, KeywordConfig, RssFeedConfig } from '../types';
+import { INITIAL_NEWS, SIMULATED_INCOMING_NEWS, MOCK_KEYWORDS, MOCK_RSS_FEEDS } from '../constants';
 import { fetchLiveNews } from '../services/geminiService';
 import NewsCard from './NewsCard';
-import { Filter, RefreshCw, Calendar, X, Search, Loader2, RotateCw } from 'lucide-react';
+import { Filter, RefreshCw, Calendar, X, Search, Loader2, RotateCw, Radio } from 'lucide-react';
 
 interface FeedProps {
   keywords?: KeywordConfig[];
+  rssFeeds?: RssFeedConfig[];
 }
 
-const Feed: React.FC<FeedProps> = ({ keywords = MOCK_KEYWORDS }) => {
+const Feed: React.FC<FeedProps> = ({ 
+  keywords = MOCK_KEYWORDS, 
+  rssFeeds = MOCK_RSS_FEEDS 
+}) => {
   const [items, setItems] = useState<NewsItem[]>(INITIAL_NEWS);
   const [filter, setFilter] = useState<Category | 'ALL'>('ALL');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Simulate Webhook/RSS update
-  const simulateIncomingData = () => {
-    setIsSimulating(true);
-    setTimeout(() => {
-      const randomNewItem = SIMULATED_INCOMING_NEWS[Math.floor(Math.random() * SIMULATED_INCOMING_NEWS.length)];
-      // Create a unique copy
-      const newItem = { 
-          ...randomNewItem, 
-          id: `new-${Date.now()}`, 
-          date: new Date().toISOString() 
-      };
-      setItems(prev => [newItem, ...prev]);
-      setIsSimulating(false);
-    }, 1200);
-  };
+  // Combined Refresh: Fetches Live Search + RSS Feeds
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
 
-  // Live Search with Gemini
-  const handleLiveSearch = async () => {
-    setIsSearching(true);
-    
-    // Use user-defined keywords passed via props
-    const searchKeywords = keywords.map(k => k.term);
-    
-    if (searchKeywords.length === 0) {
-      alert("請先在設定頁面新增關鍵字！");
-      setIsSearching(false);
-      return;
+    try {
+      // 1. Live Search (Gemini)
+      const searchKeywords = keywords.map(k => k.term);
+      const liveSearchPromise = searchKeywords.length > 0 
+        ? fetchLiveNews(searchKeywords) 
+        : Promise.resolve([]);
+
+      // 2. Simulate RSS Fetch from configured feeds
+      const rssPromise = new Promise<NewsItem[]>((resolve) => {
+        setTimeout(() => {
+          if (rssFeeds.length === 0) {
+            resolve([]);
+            return;
+          }
+          
+          // Simulate fetching 1 item per feed to mimic updates
+          const newRssItems = rssFeeds.map((feed, index) => {
+             // Pick a random template to simulate content
+             const template = SIMULATED_INCOMING_NEWS[index % SIMULATED_INCOMING_NEWS.length];
+             return {
+               ...template,
+               id: `rss-${feed.id}-${Date.now()}-${index}`,
+               source: feed.name, // Use the actual configured feed name
+               date: new Date().toISOString(),
+               snippet: `(來自訂閱源: ${feed.name}) ${template.snippet}`,
+               title: `${template.title} - [${feed.name}]`
+             };
+          });
+          resolve(newRssItems);
+        }, 1500);
+      });
+
+      // Execute in parallel
+      const [liveItems, rssItems] = await Promise.all([liveSearchPromise, rssPromise]);
+      
+      const combinedNewItems = [...liveItems, ...rssItems];
+      
+      if (combinedNewItems.length > 0) {
+        setItems(prev => {
+            // Simple dedup could go here, but for now prepend all
+            return [...combinedNewItems, ...prev];
+        });
+      }
+    } catch (e) {
+      console.error("Refresh failed", e);
+    } finally {
+      setIsRefreshing(false);
     }
-
-    const newItems = await fetchLiveNews(searchKeywords);
-    
-    if (newItems.length > 0) {
-      setItems(prev => [...newItems, ...prev]);
-    } else {
-      // Don't alert if just empty, maybe just console log or show toast in real app
-      console.log("No new items found.");
-    }
-    setIsSearching(false);
   };
 
   const handleAnalysisComplete = (id: string, analysis: any) => {
@@ -131,7 +149,7 @@ const Feed: React.FC<FeedProps> = ({ keywords = MOCK_KEYWORDS }) => {
               <button
                 key={cat}
                 onClick={() => setFilter(cat)}
-                className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-300 whitespace-nowrap ${
+                className={`px-5 py-2 rounded-full text-xs font-semibold transition-all duration-300 whitespace-nowrap ${
                   filter === cat ? getActiveStyle(cat) : getInactiveStyle()
                 }`}
               >
@@ -141,7 +159,7 @@ const Feed: React.FC<FeedProps> = ({ keywords = MOCK_KEYWORDS }) => {
           </div>
 
           {/* Date Picker */}
-          <div className="flex items-center gap-2 bg-white p-1.5 rounded-full border border-slate-200 shadow-sm h-[42px] min-w-[320px]">
+          <div className="flex items-center gap-2 bg-white p-1.5 rounded-full border border-slate-200 shadow-sm h-[42px] min-w-[300px]">
             <div className="flex items-center gap-2 pl-3 pr-2 border-r border-slate-100 h-full">
               <Calendar size={16} className="text-slate-400" />
             </div>
@@ -149,7 +167,7 @@ const Feed: React.FC<FeedProps> = ({ keywords = MOCK_KEYWORDS }) => {
               type="date" 
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="text-sm text-slate-600 outline-none bg-transparent w-32 px-1"
+              className="text-sm text-slate-600 outline-none bg-transparent w-28 px-1"
               placeholder="開始日期"
             />
             <span className="text-slate-300 text-sm">-</span>
@@ -157,7 +175,7 @@ const Feed: React.FC<FeedProps> = ({ keywords = MOCK_KEYWORDS }) => {
               type="date" 
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="text-sm text-slate-600 outline-none bg-transparent w-32 px-1"
+              className="text-sm text-slate-600 outline-none bg-transparent w-28 px-1"
               placeholder="結束日期"
             />
             {(startDate || endDate) && (
@@ -176,21 +194,12 @@ const Feed: React.FC<FeedProps> = ({ keywords = MOCK_KEYWORDS }) => {
         <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto justify-end">
           
            <button 
-            onClick={handleLiveSearch}
-            disabled={isSearching || isSimulating}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-full shadow-lg shadow-indigo-200 transition-all active:scale-95 disabled:opacity-70 whitespace-nowrap font-medium text-sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-full shadow-lg shadow-indigo-200 transition-all active:scale-95 disabled:opacity-70 whitespace-nowrap font-medium text-sm min-w-[160px] justify-center"
           >
-            {isSearching ? <Loader2 size={18} className="animate-spin" /> : <RotateCw size={18} />}
-            {isSearching ? '正在更新情報...' : '立即更新情報 (Refresh)'}
-          </button>
-
-          <button 
-            onClick={simulateIncomingData}
-            disabled={isSimulating || isSearching}
-            className="flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-300 text-slate-600 px-5 py-2.5 rounded-full shadow-sm transition-transform active:scale-95 disabled:opacity-70 whitespace-nowrap font-medium text-sm"
-          >
-            <RefreshCw size={18} className={isSimulating ? 'animate-spin' : ''} />
-            {isSimulating ? 'RSS 同步中...' : '測試訊號'}
+            {isRefreshing ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}
+            {isRefreshing ? '更新中...' : '刷新新聞 (Refresh News)'}
           </button>
         </div>
       </div>
@@ -215,7 +224,7 @@ const Feed: React.FC<FeedProps> = ({ keywords = MOCK_KEYWORDS }) => {
             {items.length === 0 ? '目前沒有任何情報' : '此篩選條件下沒有情報'}
           </h3>
           <p className="text-slate-400 text-sm mt-2">
-            {startDate || endDate ? '請嘗試調整日期範圍或類別' : '點擊右上角「立即更新情報」以獲取最新資訊'}
+            {startDate || endDate ? '請嘗試調整日期範圍或類別' : '點擊右上角「刷新新聞」以獲取最新資訊'}
           </p>
         </div>
       )}
