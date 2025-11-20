@@ -1,4 +1,4 @@
-import { Category, NewsItem, KeywordConfig } from './types';
+import { Category, NewsItem, KeywordConfig, RssFeedConfig } from './types';
 
 export const MOCK_KEYWORDS: KeywordConfig[] = [
   { id: '1', term: '麥當勞 食安', category: Category.DEFENSIVE },
@@ -7,6 +7,12 @@ export const MOCK_KEYWORDS: KeywordConfig[] = [
   { id: '4', term: 'Foodpanda 獨家', category: Category.OFFENSIVE },
   { id: '5', term: '台北米其林', category: Category.OFFENSIVE },
   { id: '6', term: '手搖飲 趨勢', category: Category.SOCIAL },
+];
+
+export const MOCK_RSS_FEEDS: RssFeedConfig[] = [
+  { id: '1', name: 'Google Alerts - 麥當勞', url: 'https://www.google.com/alerts/feeds/123456789' },
+  { id: '2', name: '食力 FoodNext', url: 'https://www.foodnext.net/rss' },
+  { id: '3', name: 'Inside 硬塞的網路趨勢觀察', url: 'https://www.inside.com.tw/feed' },
 ];
 
 export const INITIAL_NEWS: NewsItem[] = [

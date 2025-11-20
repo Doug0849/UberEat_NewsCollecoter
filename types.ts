@@ -30,6 +30,12 @@ export interface KeywordConfig {
   category: Category;
 }
 
+export interface RssFeedConfig {
+  id: string;
+  name: string;
+  url: string;
+}
+
 // Mock data types for chart
 export interface SentimentData {
   name: string;
